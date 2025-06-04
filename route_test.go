@@ -8,17 +8,6 @@ import (
 
 var dummyHandlerFunc = http.NotFound
 
-type mockElement struct {
-	WantHandler bool
-}
-
-func (e *mockElement) Resolve(_ *http.Request) http.HandlerFunc {
-	if e.WantHandler {
-		return dummyHandlerFunc
-	}
-	return nil
-}
-
 func TestRoutePathElement_Resolve(t *testing.T) {
 	tests := []struct {
 		name      string

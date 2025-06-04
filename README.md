@@ -5,7 +5,7 @@
 **A blazing-fast, exact-match HTTP router for Go. Built to be strict, safe, and predictable.**
 
 ---
-![GoltMux Logo](https://github.com/VloRyan/goltmux/.github/assets/logo.png)
+![GoltMux Logo](.github/assets/logo.png)
 
 ## 🚀 What is GoltMux?
 

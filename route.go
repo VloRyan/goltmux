@@ -24,9 +24,7 @@ type RoutePathElement struct {
 }
 
 func (r *RoutePathElement) Resolve(path string) RouteElement {
-	if strings.HasPrefix(path, "/") {
-		path = path[1:]
-	}
+	path = strings.TrimPrefix(path, "/")
 	pathElem := path
 	firstSlash := strings.Index(path, "/")
 	if firstSlash != -1 {
@@ -35,7 +33,7 @@ func (r *RoutePathElement) Resolve(path string) RouteElement {
 	if !r.IsWildcard() && r.Path != pathElem {
 		return nil
 	}
-	childPath := path
+	childPath := ""
 	if firstSlash != -1 {
 		childPath = path[firstSlash+1:]
 	} else {
@@ -57,9 +55,7 @@ func (r *RoutePathElement) IsWildcard() bool {
 }
 
 func (r *RoutePathElement) Add(path string) (RouteElement, error) {
-	if strings.HasPrefix(path, "/") {
-		path = path[1:]
-	}
+	path = strings.TrimPrefix(path, "/")
 	parts := strings.Split(path, "/")
 	currentElem := r
 	for i, part := range parts {
@@ -106,31 +102,6 @@ func (r *RoutePathElement) Walk(f func(child RouteElement)) {
 	for _, child := range r.Children {
 		f(child)
 	}
-}
-func (r *RoutePathElement) ResolveSubPath(subPath string) *RoutePathElement {
-	pathElem := subPath
-	firstSlash := strings.Index(subPath, "/")
-	if firstSlash != -1 {
-		pathElem = subPath[:firstSlash]
-	}
-	if r.Path != "*" && r.Path != pathElem {
-		return nil
-	}
-	childPath := subPath
-	if firstSlash != -1 {
-		childPath = subPath[firstSlash+1:]
-	} else {
-		childPath = subPath[len(pathElem):]
-	}
-	if childPath == "" {
-		return r
-	}
-	for _, child := range r.Children {
-		if found := child.ResolveSubPath(childPath); found != nil {
-			return found
-		}
-	}
-	return nil
 }
 
 type RouteRootElement struct {
