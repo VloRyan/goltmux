@@ -91,7 +91,7 @@ The router will always prefer the **most specific and exact** match — no ambig
 
 ## 📜 License
 
-MIT License © 2025 [Your Name]
+MIT License © 2025 VloRyan
 
 ---
 
