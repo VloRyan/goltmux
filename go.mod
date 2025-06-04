@@ -1,4 +1,4 @@
-module github.com/VloRyan/goltmux
+module github.com/vloryan/goltmux
 
 go 1.24
 
