@@ -13,9 +13,8 @@
 approximation**.
 
 It was built in response to limitations in existing routers like [
-`httprouter`](https://github.com/julienschmidt/httprouter) – particularly critical issues such
-as [#73](https://github.com/julienschmidt/httprouter/issues/73), where similar paths can **mismatch or wrongly resolve
-**.
+`httprouter`](https://github.com/julienschmidt/httprouter) – particularly critical issues such as
+[#73](https://github.com/julienschmidt/httprouter/issues/73), where similar paths can **mismatch or wrongly resolve**.
 
 GoltMux **avoids path ambiguity entirely** by applying a **strict best-match-first** algorithm. No fallbacks, no "close
 enough" routes – only the *exactly matching route wins*.
