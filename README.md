@@ -63,7 +63,7 @@ func main() {
 	router := goltmux.NewRouter()
 
 	router.GET("/users/:id", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "User profile")
+		fmt.Fprintln(w, "User profile: "+r.URL.Query().Get(":id"))
 	})
 
 	router.GET("/users/settings", func(w http.ResponseWriter, r *http.Request) {

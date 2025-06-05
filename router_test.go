@@ -2,6 +2,7 @@ package goltmux
 
 import (
 	"net/http"
+	"net/url"
 	"reflect"
 	"testing"
 )
@@ -52,10 +53,11 @@ var successResponse = response{
 func TestRouter(t *testing.T) {
 
 	tests := []struct {
-		name    string
-		reqFunc func() *http.Request
-		init    func(router *Router)
-		want    response
+		name      string
+		reqFunc   func() *http.Request
+		init      func(router *Router)
+		want      response
+		wantQuery url.Values
 	}{{
 		name: "GIVEN plain request THEN respond with matching route",
 		reqFunc: func() *http.Request {
@@ -88,7 +90,8 @@ func TestRouter(t *testing.T) {
 			router.HandleMethod(http.MethodGet, "/domain/item/other", writeFail)
 
 		},
-		want: successResponse,
+		want:      successResponse,
+		wantQuery: url.Values{":id": {"1"}},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -101,6 +104,16 @@ func TestRouter(t *testing.T) {
 			if !reflect.DeepEqual(tt.want, responseFromWriter(wr)) {
 				t.Errorf("ServeHTTP() mismatch:\nwant:%v, got:%v", tt.want, responseFromWriter(wr))
 			}
+			if tt.wantQuery != nil {
+				if !reflect.DeepEqual(tt.wantQuery, req.URL.Query()) {
+					t.Errorf("ServeHTTP() mismatch:\nwantQuery:%v, got:%v", tt.wantQuery, req.URL.Query())
+				}
+			} else {
+				if req.URL.RawQuery != "" {
+					t.Errorf("ServeHTTP() mismatch:\nwant:%v, got:%v", tt.wantQuery, req.URL.Query())
+				}
+			}
+
 		})
 	}
 }

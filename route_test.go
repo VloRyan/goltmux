@@ -10,12 +10,13 @@ var dummyHandlerFunc = http.NotFound
 
 func TestRoutePathElement_Resolve(t *testing.T) {
 	tests := []struct {
-		name      string
-		elem      RoutePathElement
-		path      string
-		wantMatch bool
+		name       string
+		elem       RoutePathElement
+		path       string
+		wantMatch  bool
+		wantParams map[string]string
 	}{{
-		name: "GIVEN matching path THEN return handler",
+		name: "GIVEN matching path THEN return element",
 		elem: RoutePathElement{
 			Path:            "test",
 			HandleRouteFunc: dummyHandlerFunc,
@@ -31,18 +32,34 @@ func TestRoutePathElement_Resolve(t *testing.T) {
 		path:      "/test1",
 		wantMatch: false,
 	}, {
-		name: "GIVEN parameter marker THEN handler",
+		name: "GIVEN parameter marker THEN return element and params",
 		elem: RoutePathElement{
-			Path:            ":param",
-			HandleRouteFunc: dummyHandlerFunc,
+			Path: ":param",
+			Children: []*RoutePathElement{{
+				Path: "*",
+				Children: []*RoutePathElement{{
+					Path:            ":param2",
+					HandleRouteFunc: dummyHandlerFunc,
+				}}}},
 		},
-		path:      "/myParam",
-		wantMatch: true,
+		path:       "/myParam/path/anotherParam",
+		wantMatch:  true,
+		wantParams: map[string]string{":param": "myParam", ":param2": "anotherParam"},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.elem.Resolve(tt.path); (got != nil) != tt.wantMatch {
+			if got, params := tt.elem.Resolve(tt.path); (got != nil) != tt.wantMatch {
 				t.Errorf("Resolve() = %v, want %v", got != nil, tt.wantMatch)
+			} else {
+				if tt.wantParams == nil {
+					if len(params) != 0 {
+						t.Errorf("Resolve() params = %v, want %v", params, make(map[string]string))
+					}
+				} else {
+					if !reflect.DeepEqual(tt.wantParams, params) {
+						t.Errorf("Resolve() params = %v, want:%v", params, tt.wantParams)
+					}
+				}
 			}
 		})
 	}
@@ -73,6 +90,24 @@ func TestRoutePathElement_Add(t *testing.T) {
 					}}}}},
 		},
 		paths: []string{"/domain/item/:id", "/domain/item/other"},
+	}, {
+		name: "GIVEN path trailing slash THEN add children",
+		want: RoutePathElement{
+			Children: []*RoutePathElement{{
+				Path: "domain", Children: []*RoutePathElement{{
+					Path: "item",
+				}}}},
+		},
+		paths: []string{"/domain/item/"},
+	}, {
+		name: "GIVEN path with double slash THEN add children",
+		want: RoutePathElement{
+			Children: []*RoutePathElement{{
+				Path: "domain", Children: []*RoutePathElement{{
+					Path: "item",
+				}}}},
+		},
+		paths: []string{"/domain//item/", "//domain/item/", "/domain/item//", "/domain/item///"},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -82,7 +117,7 @@ func TestRoutePathElement_Add(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(tt.want, e) {
-				t.Errorf("ServeHTTP() mismatch:\nwant:%v, got:%v", tt.want, e)
+				t.Errorf("Add() mismatch:\nwant:%v, got:%v", tt.want, e)
 			}
 		})
 	}
