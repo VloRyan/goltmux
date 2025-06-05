@@ -71,7 +71,7 @@ func TestRouter(t *testing.T) {
 			router.HandleMethod(http.MethodGet, "/test/this/feat/out", writeFail)
 			router.HandleMethod(http.MethodGet, "/test/this/feat2", writeFail)
 			router.Handle("application/vnd.api+json", http.MethodGet, "/test/this/feat", writeFail)
-			router.Handle("application/json", http.MethodPost, "/test/this/feat", writeSuccess)
+			router.Handle("application/json", http.MethodPost, "/test/this/feat", writeFail)
 
 			router.Handle("application/json", http.MethodGet, "/test/this/feat", writeSuccess)
 		},
@@ -92,6 +92,39 @@ func TestRouter(t *testing.T) {
 		},
 		want:      successResponse,
 		wantQuery: url.Values{":id": {"1"}},
+	}, {
+		name: "GIVEN request with method THEN respond with matching route",
+		reqFunc: func() *http.Request {
+			req, _ := http.NewRequest(http.MethodGet, "/domain1/item1", nil)
+			req.Header.Set("Content-Type", "application/json")
+			return req
+		},
+		init: func(router *Router) {
+			router.HandleMethod(http.MethodGet, "/", writeSuccess)
+			router.HandleMethod(http.MethodGet, "/domain/", writeFail)
+			router.HandleMethod(http.MethodGet, "/domain/item", writeFail)
+			router.HandleMethod(http.MethodGet, "/domain/item/other", writeFail)
+
+		},
+		want: successResponse,
+	}, {
+		name: "GIVEN request with no matching route THEN respond 404",
+		reqFunc: func() *http.Request {
+			req, _ := http.NewRequest(http.MethodGet, "/domain1/item1", nil)
+			req.Header.Set("Content-Type", "text/html")
+			return req
+		},
+		init: func(router *Router) {
+			router.Handle("application/json", http.MethodGet, "/", writeFail)
+			router.Handle("application/json", http.MethodGet, "/domain/", writeFail)
+			router.Handle("application/json", http.MethodGet, "/domain/item", writeFail)
+			router.Handle("application/json", http.MethodGet, "/domain/item/other", writeFail)
+
+		},
+		want: response{
+			StatusCode: http.StatusNotFound,
+			Body:       []byte("404 page not found\n"),
+		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -15,7 +15,7 @@ type RouteElement interface {
 	Add(path string) (RouteElement, error)
 	Handler() http.HandlerFunc
 	UpdateHandler(fun http.HandlerFunc)
-	Walk(func(child RouteElement))
+	Walk(func(child RouteElement) bool)
 }
 type RoutePathElement struct {
 	Path            string
@@ -109,8 +109,10 @@ func (r *RoutePathElement) UpdateHandler(fun http.HandlerFunc) {
 	r.HandleRouteFunc = fun
 }
 
-func (r *RoutePathElement) Walk(f func(child RouteElement)) {
+func (r *RoutePathElement) Walk(f func(child RouteElement) bool) {
 	for _, child := range r.Children {
-		f(child)
+		if !f(child) {
+			break
+		}
 	}
 }
