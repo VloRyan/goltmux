@@ -18,12 +18,22 @@ func NewRouter() *Router {
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	contentType := strings.ReplaceAll(req.Header.Get("Content-Type"), "/", "_")
 	handled := false
+	params := make(map[string]string)
 	r.root.Walk(func(child RouteElement) {
-		if ctRoute := child.Resolve(contentType); ctRoute != nil {
+		if ctRoute, p := child.Resolve(contentType); ctRoute != nil {
+			for k, v := range p {
+				params[k] = v
+			}
 			ctRoute.Walk(func(child RouteElement) {
-				if mRoute := child.Resolve(req.Method); mRoute != nil {
+				if mRoute, p := child.Resolve(req.Method); mRoute != nil {
+					for k, v := range p {
+						params[k] = v
+					}
 					mRoute.Walk(func(child RouteElement) {
-						if uRoute := child.Resolve(req.URL.Path); uRoute != nil {
+						if uRoute, p := child.Resolve(req.URL.Path); uRoute != nil {
+							for k, v := range p {
+								params[k] = v
+							}
 							if uRoute.Handler() != nil {
 								uRoute.Handler()(w, req)
 								handled = true
@@ -51,7 +61,13 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	})
-	if !handled {
+	if handled {
+		q := req.URL.Query()
+		for k, v := range params {
+			q.Add(k, v)
+		}
+		req.URL.RawQuery = q.Encode()
+	} else {
 		http.NotFound(w, req)
 	}
 }
