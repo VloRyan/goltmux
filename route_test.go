@@ -40,7 +40,8 @@ func TestRoutePathElement_Resolve(t *testing.T) {
 				Children: []*RoutePathElement{{
 					Path:            ":param2",
 					HandleRouteFunc: dummyHandlerFunc,
-				}}}},
+				}},
+			}},
 		},
 		path:       "/myParam/path/anotherParam",
 		wantMatch:  true,
@@ -64,6 +65,7 @@ func TestRoutePathElement_Resolve(t *testing.T) {
 		})
 	}
 }
+
 func TestRoutePathElement_Add(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -76,7 +78,9 @@ func TestRoutePathElement_Add(t *testing.T) {
 				Path: "test", Children: []*RoutePathElement{{
 					Path: "this", Children: []*RoutePathElement{{
 						Path: "func",
-					}}}}}},
+					}},
+				}},
+			}},
 		},
 		paths: []string{"/test/this/func"},
 	}, {
@@ -87,7 +91,9 @@ func TestRoutePathElement_Add(t *testing.T) {
 					Path: "item", Children: []*RoutePathElement{
 						{Path: "other"},
 						{Path: ":id"},
-					}}}}},
+					},
+				}},
+			}},
 		},
 		paths: []string{"/domain/item/:id", "/domain/item/other"},
 	}, {
@@ -96,7 +102,8 @@ func TestRoutePathElement_Add(t *testing.T) {
 			Children: []*RoutePathElement{{
 				Path: "domain", Children: []*RoutePathElement{{
 					Path: "item",
-				}}}},
+				}},
+			}},
 		},
 		paths: []string{"/domain/item/"},
 	}, {
@@ -105,7 +112,8 @@ func TestRoutePathElement_Add(t *testing.T) {
 			Children: []*RoutePathElement{{
 				Path: "domain", Children: []*RoutePathElement{{
 					Path: "item",
-				}}}},
+				}},
+			}},
 		},
 		paths: []string{"/domain//item/", "//domain/item/", "/domain/item//", "/domain/item///"},
 	}}

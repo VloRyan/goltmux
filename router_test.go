@@ -24,10 +24,12 @@ func (m *mockWriter) Write(bytes []byte) (int, error) {
 func (m *mockWriter) WriteHeader(statusCode int) {
 	m.statusCode = statusCode
 }
+
 func writeSuccess(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("success"))
 }
+
 func writeFail(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusInternalServerError)
 	_, _ = w.Write([]byte(r.Header.Get("Content-Type") + ";" + r.Method + ": " + r.URL.Path))
@@ -51,7 +53,6 @@ var successResponse = response{
 }
 
 func TestRouter(t *testing.T) {
-
 	tests := []struct {
 		name      string
 		reqFunc   func() *http.Request
@@ -88,7 +89,6 @@ func TestRouter(t *testing.T) {
 			router.HandleMethod(http.MethodGet, "/domain/item", writeFail)
 			router.HandleMethod(http.MethodGet, "/domain/item/:id", writeSuccess)
 			router.HandleMethod(http.MethodGet, "/domain/item/other", writeFail)
-
 		},
 		want:      successResponse,
 		wantQuery: url.Values{":id": {"1"}},
@@ -104,7 +104,6 @@ func TestRouter(t *testing.T) {
 			router.HandleMethod(http.MethodGet, "/domain/", writeFail)
 			router.HandleMethod(http.MethodGet, "/domain/item", writeFail)
 			router.HandleMethod(http.MethodGet, "/domain/item/other", writeFail)
-
 		},
 		want: successResponse,
 	}, {
@@ -119,12 +118,26 @@ func TestRouter(t *testing.T) {
 			router.Handle("application/json", http.MethodGet, "/domain/", writeFail)
 			router.Handle("application/json", http.MethodGet, "/domain/item", writeFail)
 			router.Handle("application/json", http.MethodGet, "/domain/item/other", writeFail)
-
 		},
 		want: response{
 			StatusCode: http.StatusNotFound,
 			Body:       []byte("404 page not found\n"),
 		},
+	}, {
+		name: "GIVEN request with no matching route and NotFoundHandler THEN respond with NotFoundHandler",
+		reqFunc: func() *http.Request {
+			req, _ := http.NewRequest(http.MethodGet, "/domain1/item1", nil)
+			req.Header.Set("Content-Type", "text/html")
+			return req
+		},
+		init: func(router *Router) {
+			router.Handle("application/json", http.MethodGet, "/", writeFail)
+			router.Handle("application/json", http.MethodGet, "/domain/", writeFail)
+			router.Handle("application/json", http.MethodGet, "/domain/item", writeFail)
+			router.Handle("application/json", http.MethodGet, "/domain/item/other", writeFail)
+			router.NotFoundHandler = writeSuccess
+		},
+		want: successResponse,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -146,7 +159,6 @@ func TestRouter(t *testing.T) {
 					t.Errorf("ServeHTTP() mismatch:\nwant:%v, got:%v", tt.wantQuery, req.URL.Query())
 				}
 			}
-
 		})
 	}
 }

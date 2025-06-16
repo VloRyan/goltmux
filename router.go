@@ -6,7 +6,8 @@ import (
 )
 
 type Router struct {
-	root RouteElement
+	root            RouteElement
+	NotFoundHandler http.HandlerFunc
 }
 
 func NewRouter() *Router {
@@ -77,13 +78,18 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		req.URL.RawQuery = q.Encode()
 		handler(w, req)
 	} else {
-		http.NotFound(w, req)
+		if r.NotFoundHandler != nil {
+			r.NotFoundHandler(w, req)
+		} else {
+			http.NotFound(w, req)
+		}
 	}
 }
 
 func (r *Router) HandleMethod(method string, path string, handler http.HandlerFunc) {
 	r.Handle("*", method, path, handler)
 }
+
 func (r *Router) Handle(contentType, method, path string, handler http.HandlerFunc) {
 	ctRoute, err := r.root.Add(strings.ReplaceAll(contentType, "/", "_"))
 	if err != nil {
@@ -102,6 +108,7 @@ func (r *Router) Handle(contentType, method, path string, handler http.HandlerFu
 	}
 	uRoute.UpdateHandler(handler)
 }
+
 func (r *Router) GET(path string, handler http.HandlerFunc) {
 	r.HandleMethod(http.MethodGet, path, handler)
 }

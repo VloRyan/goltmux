@@ -7,16 +7,19 @@ import (
 	"strings"
 )
 
-type HandleRouteFunc func(method, path string, handler http.HandlerFunc)
-type RouteElement interface {
-	Resolve(path string) (RouteElement, map[string]string)
-	IsWildcard() bool
-	IsParam() bool
-	Add(path string) (RouteElement, error)
-	Handler() http.HandlerFunc
-	UpdateHandler(fun http.HandlerFunc)
-	Walk(func(child RouteElement) bool)
-}
+type (
+	HandleRouteFunc func(method, path string, handler http.HandlerFunc)
+	RouteElement    interface {
+		Resolve(path string) (RouteElement, map[string]string)
+		IsWildcard() bool
+		IsParam() bool
+		Add(path string) (RouteElement, error)
+		Handler() http.HandlerFunc
+		UpdateHandler(fun http.HandlerFunc)
+		Walk(func(child RouteElement) bool)
+	}
+)
+
 type RoutePathElement struct {
 	Path            string
 	HandleRouteFunc http.HandlerFunc
@@ -27,6 +30,7 @@ func (r *RoutePathElement) Resolve(path string) (RouteElement, map[string]string
 	params := make(map[string]string)
 	return r.resolve(path, params), params
 }
+
 func (r *RoutePathElement) resolve(path string, params map[string]string) RouteElement {
 	path = strings.TrimPrefix(path, "/")
 	pathElem := path
@@ -55,6 +59,7 @@ func (r *RoutePathElement) resolve(path string, params map[string]string) RouteE
 func (r *RoutePathElement) IsWildcard() bool {
 	return r.Path == "*" || r.IsParam()
 }
+
 func (r *RoutePathElement) IsParam() bool {
 	return strings.HasPrefix(r.Path, ":")
 }
@@ -105,6 +110,7 @@ func (r *RoutePathElement) Add(path string) (RouteElement, error) {
 func (r *RoutePathElement) Handler() http.HandlerFunc {
 	return r.HandleRouteFunc
 }
+
 func (r *RoutePathElement) UpdateHandler(fun http.HandlerFunc) {
 	r.HandleRouteFunc = fun
 }
