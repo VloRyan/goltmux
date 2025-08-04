@@ -6,7 +6,8 @@ import (
 )
 
 type Router struct {
-	root RouteElement
+	root            RouteElement
+	NotFoundHandler http.HandlerFunc
 }
 
 func NewRouter() *Router {
@@ -17,64 +18,78 @@ func NewRouter() *Router {
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	contentType := strings.ReplaceAll(req.Header.Get("Content-Type"), "/", "_")
-	handled := false
+	var handler http.HandlerFunc
 	params := make(map[string]string)
-	r.root.Walk(func(child RouteElement) {
+	r.root.Walk(func(child RouteElement) bool {
 		if ctRoute, p := child.Resolve(contentType); ctRoute != nil {
 			for k, v := range p {
 				params[k] = v
 			}
-			ctRoute.Walk(func(child RouteElement) {
+			ctRoute.Walk(func(child RouteElement) bool {
 				if mRoute, p := child.Resolve(req.Method); mRoute != nil {
 					for k, v := range p {
 						params[k] = v
 					}
-					mRoute.Walk(func(child RouteElement) {
+					mRoute.Walk(func(child RouteElement) bool {
 						if uRoute, p := child.Resolve(req.URL.Path); uRoute != nil {
 							for k, v := range p {
 								params[k] = v
 							}
-							if uRoute.Handler() != nil {
-								uRoute.Handler()(w, req)
-								handled = true
-								return
+							handler = uRoute.Handler()
+							if handler != nil {
+								return false
 							}
 						}
+						return true
 					})
-					if mRoute.Handler() != nil {
-						mRoute.Handler()(w, req)
-						handled = true
-						return
+					if handler != nil {
+						return false
 					}
+					if mRoute.Handler() != nil {
+						handler = mRoute.Handler()
+						return false
+					}
+					return true
 				}
-				if handled {
-					return
+				if handler != nil {
+					return false
 				}
+				return true
 			})
-			if ctRoute.Handler() != nil {
-				ctRoute.Handler()(w, req)
-				handled = true
-				return
+			if handler != nil {
+				return false
 			}
+			if ctRoute.Handler() != nil {
+				handler = ctRoute.Handler()
+				return false
+			}
+			return true
 		}
-		if handled {
-			return
+		if handler != nil {
+			return false
 		}
+		return true
 	})
-	if handled {
+	if handler != nil {
 		q := req.URL.Query()
 		for k, v := range params {
 			q.Add(k, v)
 		}
 		req.URL.RawQuery = q.Encode()
+		handler(w, req)
 	} else {
-		http.NotFound(w, req)
+		if r.NotFoundHandler != nil {
+			r.NotFoundHandler(w, req)
+		} else {
+			http.NotFound(w, req)
+		}
 	}
 }
 
 func (r *Router) HandleMethod(method string, path string, handler http.HandlerFunc) {
 	r.Handle("*", method, path, handler)
 }
+
 func (r *Router) Handle(contentType, method, path string, handler http.HandlerFunc) {
 	ctRoute, err := r.root.Add(strings.ReplaceAll(contentType, "/", "_"))
 	if err != nil {
@@ -93,6 +108,7 @@ func (r *Router) Handle(contentType, method, path string, handler http.HandlerFu
 	}
 	uRoute.UpdateHandler(handler)
 }
+
 func (r *Router) GET(path string, handler http.HandlerFunc) {
 	r.HandleMethod(http.MethodGet, path, handler)
 }
