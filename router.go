@@ -17,7 +17,8 @@ func NewRouter() *Router {
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	handler, params := r.Lookup(req.Header.Get("Content-Type"), req.Method, req.URL.Path)
+	mediaType, _ := extractContentType(req)
+	handler, params := r.Lookup(mediaType, req.Method, req.URL.Path)
 	if handler != nil {
 		q := req.URL.Query()
 		for k, v := range params {
@@ -32,6 +33,15 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			http.NotFound(w, req)
 		}
 	}
+}
+
+func extractContentType(req *http.Request) (string, string) {
+	header := req.Header.Get("Content-Type")
+	paramStart := strings.Index(header, ";")
+	if paramStart == -1 {
+		return header, ""
+	}
+	return header[:paramStart], strings.TrimSpace(header[paramStart+1:])
 }
 
 func (r *Router) Lookup(contentType, method, url string) (http.HandlerFunc, map[string]string) {

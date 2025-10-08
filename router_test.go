@@ -162,3 +162,20 @@ func TestRouter(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractContentType(t *testing.T) {
+	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Content-Type", "text/html")
+
+	c, p := extractContentType(req)
+	if c != "text/html" || p != "" {
+		t.Errorf("extractContentType() want 'text/html'->'', got '%s'->'%s' ", c, p)
+	}
+
+	req, _ = http.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Content-Type", "application/html; charset=utf-8")
+	c, p = extractContentType(req)
+	if c != "application/html" || p != "charset=utf-8" {
+		t.Errorf("extractContentType() want 'application/html'->'', got '%s'->'%s' ", c, p)
+	}
+}
