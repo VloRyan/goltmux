@@ -6,19 +6,17 @@ import (
 )
 
 type Router struct {
-	root            RouteElement
+	tree            RouteTree
 	NotFoundHandler http.HandlerFunc
 }
 
 func NewRouter() *Router {
-	return &Router{
-		root: &RoutePathElement{},
-	}
+	return &Router{}
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	mediaType, _ := extractContentType(req)
-	handler, params := r.Lookup(mediaType, req.Method, req.URL.Path)
+	contentType, _ := extractContentType(req)
+	handler, params := r.Lookup(contentType, req.Method, req.URL.Path)
 	if handler != nil {
 		q := req.URL.Query()
 		for k, v := range params {
@@ -45,85 +43,45 @@ func extractContentType(req *http.Request) (string, string) {
 }
 
 func (r *Router) Lookup(contentType, method, url string) (http.HandlerFunc, map[string]string) {
-	contentType = strings.ReplaceAll(contentType, "/", "_")
-	var handler http.HandlerFunc
-	params := make(map[string]string)
-	r.root.Walk(func(child RouteElement) bool {
-		if ctRoute, p := child.Resolve(contentType); ctRoute != nil {
-			for k, v := range p {
-				params[k] = v
-			}
-			ctRoute.Walk(func(child RouteElement) bool {
-				if mRoute, p := child.Resolve(method); mRoute != nil {
-					for k, v := range p {
-						params[k] = v
-					}
-					mRoute.Walk(func(child RouteElement) bool {
-						if uRoute, p := child.Resolve(url); uRoute != nil {
-							for k, v := range p {
-								params[k] = v
-							}
-							handler = uRoute.Handler()
-							if handler != nil {
-								return false
-							}
-						}
-						return true
-					})
-					if handler != nil {
-						return false
-					}
-					if mRoute.Handler() != nil {
-						handler = mRoute.Handler()
-						return false
-					}
-					return true
-				}
-				if handler != nil {
-					return false
-				}
-				return true
-			})
-			if handler != nil {
-				return false
-			}
-			if ctRoute.Handler() != nil {
-				handler = ctRoute.Handler()
-				return false
-			}
-			return true
+	path := r.makePathSlice(contentType, method, url)
+	elem, param := r.tree.Resolve(path)
+	if elem == nil {
+		return r.NotFoundHandler, nil
+	}
+	return elem.HandleRouteFunc, param
+}
+
+func (r *Router) HandleMethod(method string, url string, handler http.HandlerFunc) {
+	r.Handle(":", method, url, handler)
+}
+
+func (r *Router) Handle(contentType, method, url string, handler http.HandlerFunc) {
+	path := r.makePathSlice(contentType, method, url)
+	node, err := r.tree.Add(path)
+	if err != nil {
+		panic(err)
+	}
+	node.HandleRouteFunc = handler
+}
+
+func (r *Router) GET(url string, handler http.HandlerFunc) {
+	r.HandleMethod(http.MethodGet, url, handler)
+}
+
+func (r *Router) makePathSlice(contentType, method, url string) []string {
+	parts := strings.Split(url, "/")
+	cleanParts := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part == "" {
+			continue
 		}
-		if handler != nil {
-			return false
-		}
-		return true
-	})
-	return handler, params
-}
-
-func (r *Router) HandleMethod(method string, path string, handler http.HandlerFunc) {
-	r.Handle("*", method, path, handler)
-}
-
-func (r *Router) Handle(contentType, method, path string, handler http.HandlerFunc) {
-	ctRoute, err := r.root.Add(strings.ReplaceAll(contentType, "/", "_"))
-	if err != nil {
-		panic(err)
+		cleanParts = append(cleanParts, part)
 	}
-	mRoute, err := ctRoute.Add(method)
-	if err != nil {
-		panic(err)
+	path := make([]string, len(cleanParts)+2)
+	path[0] = contentType
+	path[1] = method
+	for i, part := range cleanParts {
+		path[i+2] = part
 	}
-	uRoute, err := mRoute.Add(path)
-	if err != nil {
-		panic(err)
-	}
-	if uRoute.Handler() != nil {
-		panic("handler for path " + path + " already defined")
-	}
-	uRoute.UpdateHandler(handler)
-}
-
-func (r *Router) GET(path string, handler http.HandlerFunc) {
-	r.HandleMethod(http.MethodGet, path, handler)
+	return path
 }

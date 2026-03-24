@@ -95,15 +95,15 @@ func TestRouter(t *testing.T) {
 	}, {
 		name: "GIVEN request with method THEN respond with matching route",
 		reqFunc: func() *http.Request {
-			req, _ := http.NewRequest(http.MethodGet, "/domain1/item1", nil)
+			req, _ := http.NewRequest(http.MethodPost, "/domain/item", nil)
 			req.Header.Set("Content-Type", "application/json")
 			return req
 		},
 		init: func(router *Router) {
-			router.HandleMethod(http.MethodGet, "/", writeSuccess)
-			router.HandleMethod(http.MethodGet, "/domain/", writeFail)
 			router.HandleMethod(http.MethodGet, "/domain/item", writeFail)
-			router.HandleMethod(http.MethodGet, "/domain/item/other", writeFail)
+			router.HandleMethod(http.MethodPatch, "/domain/item", writeFail)
+			router.HandleMethod(http.MethodDelete, "/domain/item", writeFail)
+			router.HandleMethod(http.MethodPost, "/domain/item", writeSuccess)
 		},
 		want: successResponse,
 	}, {
