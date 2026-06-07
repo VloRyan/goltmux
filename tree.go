@@ -3,20 +3,21 @@ package goltmux
 import (
 	"errors"
 	"net/http"
-	"sort"
 	"strings"
 )
 
+func IsPlaceholder(element string) bool {
+	return strings.HasPrefix(element, ":")
+}
+
 type RouteNode struct {
+	Parent          *RouteNode
 	Path            string
 	HandleRouteFunc http.HandlerFunc
 	Children        []*RouteNode
 }
 
-var (
-	ErrPathWildcardMustBeLeaf      = errors.New("wildcards can only be leafs")
-	ErrPathContainsAmbiguousParams = errors.New("path contains ambiguous parameter marker")
-)
+var ErrPathCanOnlyContainOnePlaceholderPerLevel = errors.New("path can only contain one placeholder per level")
 
 func (r *RouteNode) Matches(path string) (bool, string) {
 	if r.IsPlaceholder() {
@@ -25,16 +26,8 @@ func (r *RouteNode) Matches(path string) (bool, string) {
 	return r.Path == path, r.Path
 }
 
-func (r *RouteNode) IsLeaf() bool {
-	return len(r.Children) == 0
-}
-
 func (r *RouteNode) IsPlaceholder() bool {
-	return strings.HasPrefix(r.Path, ":")
-}
-
-func (r *RouteNode) IsNamedPlaceholder() bool {
-	return r.IsPlaceholder() && len(r.Path) > 1
+	return IsPlaceholder(r.Path)
 }
 
 type RouteTree struct {
@@ -44,33 +37,19 @@ type RouteTree struct {
 func (t *RouteTree) Resolve(path []string) (*RouteNode, map[string]string) {
 	params := make(map[string]string)
 	currentNode := &t.Root
-	var nextNode *RouteNode = nil
-	lastIndex := len(path) - 1
-	for i, p := range path {
+	var nextNode *RouteNode
+	for _, p := range path {
 		if currentNode == nil {
 			break
 		}
-		lastToken := i == lastIndex
 		nextNode = nil
 		for _, child := range currentNode.Children {
 			match, matchedPath := child.Matches(p)
-			if !match || lastToken != child.IsLeaf() {
+			if !match {
 				continue
 			}
 			nextNode = child
 			if child.IsPlaceholder() {
-				if !lastToken {
-					nextToken := path[i+1]
-					var childMatch bool
-					for _, childOfChild := range child.Children {
-						if childMatch, _ = childOfChild.Matches(nextToken); !childMatch {
-							continue
-						}
-					}
-					if !childMatch {
-						continue
-					}
-				}
 				if len(matchedPath) > 1 {
 					params[matchedPath] = p
 				}
@@ -79,7 +58,7 @@ func (t *RouteTree) Resolve(path []string) (*RouteNode, map[string]string) {
 		}
 		currentNode = nextNode
 	}
-	if currentNode != nil && currentNode.IsLeaf() {
+	if currentNode != nil {
 		return currentNode, params
 	}
 	return nil, nil
@@ -87,7 +66,7 @@ func (t *RouteTree) Resolve(path []string) (*RouteNode, map[string]string) {
 
 func (t *RouteTree) Add(path []string) (*RouteNode, error) {
 	currentNode := &t.Root
-	for i, p := range path {
+	for _, p := range path {
 		if p == "" {
 			continue
 		}
@@ -100,25 +79,24 @@ func (t *RouteTree) Add(path []string) (*RouteNode, error) {
 			}
 		}
 		if !found {
-			newElem := &RouteNode{
-				Path: p,
+			newNode := &RouteNode{
+				Parent: currentNode,
+				Path:   p,
 			}
-			if newElem.IsPlaceholder() && i < len(path)-1 {
-				nextElem := &RouteNode{
-					Path: path[i+1],
-				}
-				if nextElem.IsPlaceholder() {
-					return nil, ErrPathContainsAmbiguousParams
+			lastNodeIsPlaceholder := len(currentNode.Children) > 0 && currentNode.Children[len(currentNode.Children)-1].IsPlaceholder()
+			if newNode.IsPlaceholder() {
+				if lastNodeIsPlaceholder {
+					return nil, ErrPathCanOnlyContainOnePlaceholderPerLevel
 				}
 			}
-			currentNode.Children = append(currentNode.Children, newElem)
-			sort.SliceStable(currentNode.Children, func(e, e2 int) bool {
-				if currentNode.Children[e].IsPlaceholder() != currentNode.Children[e2].IsPlaceholder() {
-					return currentNode.Children[e2].IsPlaceholder()
-				}
-				return currentNode.Children[e].Path < currentNode.Children[e2].Path
-			})
-			currentNode = newElem
+			if lastNodeIsPlaceholder {
+				placeholderNode := currentNode.Children[len(currentNode.Children)-1]
+				currentNode.Children[len(currentNode.Children)-1] = newNode
+				currentNode.Children = append(currentNode.Children, placeholderNode)
+			} else {
+				currentNode.Children = append(currentNode.Children, newNode)
+			}
+			currentNode = newNode
 		}
 	}
 	return currentNode, nil

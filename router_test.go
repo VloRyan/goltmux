@@ -67,10 +67,10 @@ func TestRouter(t *testing.T) {
 			return req
 		},
 		init: func(router *Router) {
-			router.HandleMethod(http.MethodGet, "/test/", writeFail)
-			router.HandleMethod(http.MethodGet, "/test/this", writeFail)
-			router.HandleMethod(http.MethodGet, "/test/this/feat/out", writeFail)
-			router.HandleMethod(http.MethodGet, "/test/this/feat2", writeFail)
+			router.Handle(":content_type", http.MethodGet, "/test/", writeFail)
+			router.Handle(":content_type", http.MethodGet, "/test/this", writeFail)
+			router.Handle(":content_type", http.MethodGet, "/test/this/feat/out", writeFail)
+			router.Handle(":content_type", http.MethodGet, "/test/this/feat2", writeFail)
 			router.Handle("application/vnd.api+json", http.MethodGet, "/test/this/feat", writeFail)
 			router.Handle("application/json", http.MethodPost, "/test/this/feat", writeFail)
 
@@ -85,13 +85,13 @@ func TestRouter(t *testing.T) {
 			return req
 		},
 		init: func(router *Router) {
-			router.HandleMethod(http.MethodGet, "/domain/", writeFail)
-			router.HandleMethod(http.MethodGet, "/domain/item", writeFail)
-			router.HandleMethod(http.MethodGet, "/domain/item/:id", writeSuccess)
-			router.HandleMethod(http.MethodGet, "/domain/item/other", writeFail)
+			router.Handle(":content_type", http.MethodGet, "/domain/", writeFail)
+			router.Handle(":content_type", http.MethodGet, "/domain/item", writeFail)
+			router.Handle(":content_type", http.MethodGet, "/domain/item/:id", writeSuccess)
+			router.Handle(":content_type", http.MethodGet, "/domain/item/other", writeFail)
 		},
 		want:      successResponse,
-		wantQuery: url.Values{":id": {"1"}},
+		wantQuery: url.Values{":content_type": {"application/json"}, ":id": {"1"}},
 	}, {
 		name: "GIVEN request with method THEN respond with matching route",
 		reqFunc: func() *http.Request {
@@ -100,12 +100,13 @@ func TestRouter(t *testing.T) {
 			return req
 		},
 		init: func(router *Router) {
-			router.HandleMethod(http.MethodGet, "/domain/item", writeFail)
-			router.HandleMethod(http.MethodPatch, "/domain/item", writeFail)
-			router.HandleMethod(http.MethodDelete, "/domain/item", writeFail)
-			router.HandleMethod(http.MethodPost, "/domain/item", writeSuccess)
+			router.Handle(":content_type", http.MethodGet, "/domain/item", writeFail)
+			router.Handle(":content_type", http.MethodPatch, "/domain/item", writeFail)
+			router.Handle(":content_type", http.MethodDelete, "/domain/item", writeFail)
+			router.Handle(":content_type", http.MethodPost, "/domain/item", writeSuccess)
 		},
-		want: successResponse,
+		want:      successResponse,
+		wantQuery: url.Values{":content_type": {"application/json"}},
 	}, {
 		name: "GIVEN request with no matching route THEN respond 404",
 		reqFunc: func() *http.Request {
@@ -156,7 +157,7 @@ func TestRouter(t *testing.T) {
 				}
 			} else {
 				if req.URL.RawQuery != "" {
-					t.Errorf("ServeHTTP() mismatch:\nwant:%v, got:%v", tt.wantQuery, req.URL.Query())
+					t.Errorf("ServeHTTP() mismatch:\nwantQuery:%v, got:%v", tt.wantQuery, req.URL.Query())
 				}
 			}
 		})

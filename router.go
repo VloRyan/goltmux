@@ -51,10 +51,6 @@ func (r *Router) Lookup(contentType, method, url string) (http.HandlerFunc, map[
 	return elem.HandleRouteFunc, param
 }
 
-func (r *Router) HandleMethod(method string, url string, handler http.HandlerFunc) {
-	r.Handle(":", method, url, handler)
-}
-
 func (r *Router) Handle(contentType, method, url string, handler http.HandlerFunc) {
 	path := r.makePathSlice(contentType, method, url)
 	node, err := r.tree.Add(path)
@@ -62,10 +58,6 @@ func (r *Router) Handle(contentType, method, url string, handler http.HandlerFun
 		panic(err)
 	}
 	node.HandleRouteFunc = handler
-}
-
-func (r *Router) GET(url string, handler http.HandlerFunc) {
-	r.HandleMethod(http.MethodGet, url, handler)
 }
 
 func (r *Router) makePathSlice(contentType, method, url string) []string {
